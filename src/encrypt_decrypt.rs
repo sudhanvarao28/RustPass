@@ -1,7 +1,10 @@
+use std::any;
+
 use aes_gcm::{aead::{consts::{U12}, generic_array::GenericArray, Aead}, Aes256Gcm, Key, KeyInit, Nonce};
 use anyhow::Ok;
-use argon2::{Argon2};
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use rand::{rngs::OsRng, TryRngCore};
+use crate::sleddb;
 
 
 
@@ -50,6 +53,53 @@ pub fn decrypt(encrypted_text:&[u8], masterpass: &[u8]) -> Result<Vec<u8>, anyho
     Ok(plaintext)
 }
 
+pub fn store_master_password(password: &[u8]) -> Result<(), anyhow::Error> {
+    let mut salt_bytes = [0u8; 16];
+    OsRng.try_fill_bytes(&mut salt_bytes)?;
+    let mut key = [0u8; 32];
+    let argon2 = Argon2::default();
+    argon2.hash_password_into(password, &salt_bytes, &mut key).expect("Unable to hash password");
+    sleddb::insert("salt", &salt_bytes.to_vec())?;
+    sleddb::insert("hash", &key.to_vec())?;
+    Ok(())
+}
+
+pub fn verify_master_password(password: &[u8]) -> Result<bool, anyhow::Error>{
+    let mut verified = false;
+    let salt = match sleddb::get("salt") {
+        Some(n) =>{
+            n.to_vec()
+        },
+        None => {
+           return Err(anyhow::anyhow!("Missing Salt"));
+        }
+    };
+
+    let hash = match sleddb::get("hash") {
+        Some(n) =>{
+            n.to_vec()
+        },
+        None => {
+           return Err(anyhow::anyhow!("Missing hash"));
+        }
+    };
+    let mut derived_hash = [0u8; 32];
+    Argon2::default().hash_password_into(password, &salt, &mut derived_hash).expect("Unable to generate hash");
+
+    if hash == derived_hash.to_vec(){
+        verified = true;
+    }
+    
+    Ok(verified)
+}
+
+pub fn is_master_password_configured() -> Result<bool, anyhow::Error> {
+    let has_salt = sleddb::get("salt").is_some(); 
+    let has_hash = sleddb::get("hash").is_some();
+    Ok(has_salt && has_hash)
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,9 +121,20 @@ mod tests {
         } else {
             println!("Encryption failed");
         }
-
-        
-
     
+    }
+
+    #[test]
+    fn test_password_verificaiton()-> Result<(),anyhow::Error>{
+        let password = b"Floroma";
+        store_master_password(password).expect("unable to store password");
+        let verified = verify_master_password(password).expect("unable to verify password");
+        assert_eq!(verified,true);
+
+        let verified = verify_master_password(b"Bloromo").expect("unable to verify password");
+        assert_eq!(verified,false);
+
+        Ok(())
+
     }
 }

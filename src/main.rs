@@ -9,8 +9,11 @@ use ratatui::{
     Terminal,
 };
 
+
 pub mod encrypt_decrypt;
+pub mod sleddb;
 use std::{any, io::{self, stdout}, path::Prefix};
+
 
 struct Userdata{
     website: String,
@@ -23,13 +26,20 @@ enum Screen {
     Menu,
     AddEntry,
 }
+
+
 fn main() -> Result<(), anyhow::Error> {
     enable_raw_mode()?;
     execute!(stdout(), EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout());
     let mut terminal = Terminal::new(backend)?;
 
-    let mut screen = Screen::Menu;
+    let mut screen = if encrypt_decrypt::is_master_password_configured()? {
+        Screen::Login
+    } else {
+        Screen::FirstSetup
+    };
+    
     let mut input = String::new();
     let menu_items = vec!["Add Password", "View Password", "Exit"];
     let mut selected = 0;
@@ -65,13 +75,13 @@ fn main() -> Result<(), anyhow::Error> {
 
                 Screen::FirstSetup => {
                     let block = Paragraph::new(input.as_str())
-                        .block(Block::default().title("Set Master Password").borders(Borders::ALL));
+                        .block(Block::default().title("Set New Master Password").borders(Borders::ALL));
                     f.render_widget(block, size);
                 }
             
                 Screen::Login => {
                     let block = Paragraph::new(input.as_str())
-                        .block(Block::default().title("Enter Master Password").borders(Borders::ALL));
+                        .block(Block::default().title("Enter Master Password To Login").borders(Borders::ALL));
                     f.render_widget(block, size);
                 }
             }
@@ -110,10 +120,46 @@ fn main() -> Result<(), anyhow::Error> {
                         KeyCode::Esc => screen = Screen::Menu,
                         _ => {}
                     }
-                }
+                },
                 Screen::FirstSetup => {
                     match key.code{
-                        KeyCode::
+                        KeyCode::Esc => {
+                            input.clear();
+                            screen = Screen::Menu;
+                        },
+                        KeyCode::Enter => {
+                            encrypt_decrypt::store_master_password(&input.as_bytes())?;
+                            screen = Screen::Menu
+                        },
+                        KeyCode::Backspace => {
+                            input.pop();
+                        },
+                        KeyCode::Char(q) => {
+                            input.push(q);
+                        },
+                        _ => {}
+                        
+                    }
+                },
+                Screen::Login => {
+                    match key.code {
+                        KeyCode::Enter => {
+                            if !encrypt_decrypt::verify_master_password(&input.as_bytes())?{
+                                return Err(anyhow::anyhow!("\nWrong Password\n"));
+                            }
+                            screen = Screen::Menu;
+                        }
+                        KeyCode::Esc => {
+                            input.clear();
+                            screen = Screen::Menu;
+                        }
+                        KeyCode::Backspace => {
+                            input.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            input.push(c);
+                        }
+                        _ => {}
                     }
                 }
             }
