@@ -18,6 +18,8 @@ struct Userdata{
     password: String,
 }
 enum Screen {
+    FirstSetup,
+    Login,
     Menu,
     AddEntry,
 }
@@ -60,6 +62,18 @@ fn main() -> Result<(), anyhow::Error> {
 
                     f.render_widget(input_block, size);
                 }
+
+                Screen::FirstSetup => {
+                    let block = Paragraph::new(input.as_str())
+                        .block(Block::default().title("Set Master Password").borders(Borders::ALL));
+                    f.render_widget(block, size);
+                }
+            
+                Screen::Login => {
+                    let block = Paragraph::new(input.as_str())
+                        .block(Block::default().title("Enter Master Password").borders(Borders::ALL));
+                    f.render_widget(block, size);
+                }
             }
         })?;
 
@@ -95,6 +109,11 @@ fn main() -> Result<(), anyhow::Error> {
                     match key.code {
                         KeyCode::Esc => screen = Screen::Menu,
                         _ => {}
+                    }
+                }
+                Screen::FirstSetup => {
+                    match key.code{
+                        KeyCode::
                     }
                 }
             }
