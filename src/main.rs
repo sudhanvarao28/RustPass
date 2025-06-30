@@ -1,3 +1,4 @@
+use argon2::password_hash::Value;
 use crossterm::{event::{self, Event, KeyCode},execute,
 terminal::{self, disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}};
 
@@ -12,22 +13,25 @@ use ratatui::{
 
 pub mod encrypt_decrypt;
 pub mod sleddb;
-use std::{any, io::{self, stdout}, path::Prefix};
+use std::{any, collections::HashMap, default, io::{self, stdout}, path::Prefix};
 
+use crate::encrypt_decrypt::encrypt;
 
-struct Userdata{
-    website: String,
-    uname: String,
-    password: String,
-}
 enum Screen {
     FirstSetup,
     Login,
     Menu,
-    AddEntry,
+    AddKeyEntry,
+    AddPasswordEntry,
+    ViewPassword,
 }
 
+fn add_entry(master_password:&str, key: &str, value:&str) -> Result<(),anyhow::Error>{
 
+    let output = encrypt(&value.as_bytes(), &master_password.as_bytes())?;
+    sleddb::insert(key, &output)?;
+    Ok(())
+}
 fn main() -> Result<(), anyhow::Error> {
     enable_raw_mode()?;
     execute!(stdout(), EnterAlternateScreen)?;
@@ -40,10 +44,12 @@ fn main() -> Result<(), anyhow::Error> {
         Screen::FirstSetup
     };
     
-    let mut input = String::new();
+    let mut masterpass_input = String::new();
+    let mut password_input = String::new();
+    let mut key_input = String::new();
     let menu_items = vec!["Add Password", "View Password", "Exit"];
     let mut selected = 0;
-
+    let mut stored_passwords: HashMap<String, Vec<u8>>= HashMap::new();
     loop{
         terminal.draw(|f|{
             let size = f.area();
@@ -66,23 +72,39 @@ fn main() -> Result<(), anyhow::Error> {
                     f.render_widget(list, size);
 
                     },
-                Screen::AddEntry =>{
-                    let input_block = Paragraph::new(input.as_str())
-                                                    .block(Block::default().title("Add new password").borders(Borders::ALL));
+                Screen::AddPasswordEntry =>{
+                    let input_block = Paragraph::new(password_input.as_str())
+                                                    .block(Block::default().title("Enter Password for Key").borders(Borders::ALL));
+
+                    f.render_widget(input_block, size);
+                },
+                Screen::AddKeyEntry => {
+                    let input_block = Paragraph::new(key_input.as_str())
+                                                    .block(Block::default().title("Enter Key").borders(Borders::ALL));
 
                     f.render_widget(input_block, size);
                 }
 
                 Screen::FirstSetup => {
-                    let block = Paragraph::new(input.as_str())
+                    let block = Paragraph::new(masterpass_input.as_str())
                         .block(Block::default().title("Set New Master Password").borders(Borders::ALL));
                     f.render_widget(block, size);
-                }
+                },
             
                 Screen::Login => {
-                    let block = Paragraph::new(input.as_str())
+                    let block = Paragraph::new(masterpass_input.as_str())
                         .block(Block::default().title("Enter Master Password To Login").borders(Borders::ALL));
                     f.render_widget(block, size);
+                }
+                Screen::ViewPassword =>{
+                    let items: Vec<ListItem> = stored_passwords.iter().map(|(key, value)| {
+                        let value_str = String::from_utf8_lossy(value);
+                        ListItem::new(format!("{} : {}", key,value_str))
+                    }).collect();
+                    let list = List::new(items)
+                    .block(Block::default().title("Stored Passwords").borders(Borders::ALL));
+            
+                    f.render_widget(list, size);
                 }
             }
         })?;
@@ -104,10 +126,12 @@ fn main() -> Result<(), anyhow::Error> {
                         },
                         KeyCode::Enter => match selected {
                             0 => {
-                                input.clear();
-                                screen = Screen::AddEntry;
+                                password_input.clear();
+                                screen = Screen::AddKeyEntry;
                             },
-                            1 => println!("View Entries not implemented"),
+                            1 => {
+                                screen = Screen::ViewPassword;
+                            },
                             2 => break,
                             _ => {}
 
@@ -115,27 +139,55 @@ fn main() -> Result<(), anyhow::Error> {
                         _ => {}
                     }
                 },
-                Screen::AddEntry =>{
+                Screen::AddKeyEntry =>{
                     match key.code {
                         KeyCode::Esc => screen = Screen::Menu,
+                        KeyCode::Char(q) => {
+                            key_input.push(q);
+                        },
+                        KeyCode::Backspace => {
+                            key_input.pop();
+                        },
+                        KeyCode::Enter => {
+                            screen = Screen::AddPasswordEntry;
+                        }
+                        _ => {}
+                    }
+                },
+               
+                Screen::AddPasswordEntry =>{
+                    match key.code {
+                        KeyCode::Esc => screen = Screen::Menu,
+                        KeyCode::Char(q) => {
+                            password_input.push(q);
+                        },
+                        KeyCode::Backspace => {
+                            password_input.pop();
+                        },
+                        KeyCode::Enter => {
+                            add_entry(&masterpass_input, &key_input.as_str(), &password_input.as_str())?;
+                            key_input.clear();
+                            password_input.clear();
+                            screen = Screen::Menu;
+                        }
                         _ => {}
                     }
                 },
                 Screen::FirstSetup => {
                     match key.code{
                         KeyCode::Esc => {
-                            input.clear();
+                            masterpass_input.clear();
                             screen = Screen::Menu;
                         },
                         KeyCode::Enter => {
-                            encrypt_decrypt::store_master_password(&input.as_bytes())?;
+                            encrypt_decrypt::store_master_password(&masterpass_input.as_bytes())?;
                             screen = Screen::Menu
                         },
                         KeyCode::Backspace => {
-                            input.pop();
+                            masterpass_input.pop();
                         },
                         KeyCode::Char(q) => {
-                            input.push(q);
+                            masterpass_input.push(q);
                         },
                         _ => {}
                         
@@ -144,21 +196,31 @@ fn main() -> Result<(), anyhow::Error> {
                 Screen::Login => {
                     match key.code {
                         KeyCode::Enter => {
-                            if !encrypt_decrypt::verify_master_password(&input.as_bytes())?{
+                            if !encrypt_decrypt::verify_master_password(&masterpass_input.as_bytes())?{
                                 return Err(anyhow::anyhow!("\nWrong Password\n"));
                             }
                             screen = Screen::Menu;
                         }
                         KeyCode::Esc => {
-                            input.clear();
+                            masterpass_input.clear();
                             screen = Screen::Menu;
                         }
                         KeyCode::Backspace => {
-                            input.pop();
+                            masterpass_input.pop();
                         }
                         KeyCode::Char(c) => {
-                            input.push(c);
+                            masterpass_input.push(c);
                         }
+                        _ => {}
+                    }
+                },
+                Screen::ViewPassword => {
+                    stored_passwords = sleddb::iter_get_passwords(masterpass_input.as_bytes())?;
+                    match key.code {
+                        KeyCode::Esc => {
+                            stored_passwords.clear();
+                            screen = Screen::Menu;
+                        },
                         _ => {}
                     }
                 }
@@ -171,3 +233,6 @@ fn main() -> Result<(), anyhow::Error> {
     Ok(())
     
 }
+
+
+// Add entry success screen when you have added a new entry

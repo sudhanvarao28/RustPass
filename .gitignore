@@ -1,5 +1,6 @@
 /target
 /rustpass_db
+/.vscode/
 
 
 # Added by cargo
