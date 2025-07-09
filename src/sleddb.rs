@@ -16,6 +16,13 @@ pub fn insert(key:&str, value:&Vec<u8>)-> sled::Result<()>{
     Ok(())
 }
 
+pub fn remove(key: &str) -> sled::Result<()> {
+    DB.remove(key)?;  // Deletes the key if it exists
+    DB.flush()?;       // Ensures changes are persisted
+    Ok(())
+}
+
+
 pub fn get(key:&str)-> Option<IVec>{
     match DB.get(key) {
         Ok(n) => {
@@ -42,6 +49,7 @@ pub fn iter_get_passwords(masterpassword: &[u8]) -> Result<HashMap<String, Vec<u
     }
     Ok(result_map)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
