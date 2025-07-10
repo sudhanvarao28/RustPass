@@ -15,14 +15,22 @@ jobs:
             suffix: windows-x86_64
             archive: zip
             name: windows
+
           - target: x86_64-unknown-linux-gnu
             suffix: linux-x86_64
             archive: tar.xz
             name: linux
+
           - target: x86_64-apple-darwin
             suffix: darwin-x86_64
             archive: tar.gz
-            name: mac
+            name: mac-intel
+
+          - target: aarch64-apple-darwin
+            suffix: darwin-aarch64
+            archive: tar.gz
+            name: mac-arm64
+
     runs-on: ubuntu-latest
 
     steps:

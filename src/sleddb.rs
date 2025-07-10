@@ -1,6 +1,4 @@
-use std::{collections::HashMap, vec};
-
-use aes_gcm::Key;
+use std::{collections::HashMap};
 use once_cell::sync::Lazy;
 use sled::{Db, IVec};
 use crate::encrypt_decrypt;
