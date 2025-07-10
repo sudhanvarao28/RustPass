@@ -1,4 +1,4 @@
-# rustpass
+# RustPass
 
 A secure, cross-platform terminal-based password manager written in Rust.
 
@@ -9,7 +9,7 @@ Download the latest release archive from the [Releases page](https://github.com/
 Its recommended to create a new dedicated directory and uncompress the binary to the newly created folder.
 
 
-# After downloading:
+# After downloading
 
 
 ## Linux (tar.xz)
