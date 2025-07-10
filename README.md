@@ -9,23 +9,23 @@ Download the latest release archive from the [Releases page](https://github.com/
 Its recommended to create a new dedicated directory and uncompress the binary to the newly created folder.
 
 
-After downloading:
+# After downloading:
 
-bash
-# Linux (tar.xz)
+
+## Linux (tar.xz)
 ``` tar -xJf rustpass-linux-x86_64.tar.xz ```
 
-# macOS x86_64 (tar.gz)
+## macOS x86_64 (tar.gz)
 ```tar -xzf rustpass-macos-x86_64.tar.gz```
 
-# macOS ARM64 (tar.gz)
+## macOS ARM64 (tar.gz)
 ```tar -xzf rustpass-macos-arm64.tar.gz```
 
-# Windows (PowerShell)
+## Windows (PowerShell)
 ```Expand-Archive -Path rustpass-windows-x86_64.zip -DestinationPath .```
 
 
-#Once Extracted
+# Once Extracted
 
 ## On Linux
 ```chmod +x rustpass```
