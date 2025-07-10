@@ -15,7 +15,7 @@ pub mod sleddb;
 
 use std::{
     collections::HashMap,
-    io::stdout,
+    io::stdout
 };
 
 use crate::encrypt_decrypt::encrypt;
@@ -187,7 +187,7 @@ fn main() -> Result<(), anyhow::Error> {
                     _ => {}
                 },
                 Screen::FirstSetup => match key.code {
-                    KeyCode::Esc => { input.masterpass_input.clear(); screen = Screen::Menu; },
+                    KeyCode::Esc => { input.masterpass_input.clear(); break; },
                     KeyCode::Enter => {
                         encrypt_decrypt::store_master_password(&input.masterpass_input.as_bytes())?;
                         screen = Screen::Menu;
@@ -203,7 +203,7 @@ fn main() -> Result<(), anyhow::Error> {
                         }
                         screen = Screen::Menu;
                     },
-                    KeyCode::Esc => { input.masterpass_input.clear(); screen = Screen::Menu; },
+                    KeyCode::Esc => { input.masterpass_input.clear(); break; },
                     KeyCode::Backspace => { input.masterpass_input.pop(); },
                     KeyCode::Char(c) => input.masterpass_input.push(c),
                     _ => {}
