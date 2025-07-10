@@ -53,3 +53,7 @@ jobs:
             zip rustpass-${{ matrix.suffix }}.zip rustpass
           elif [ "${{ matrix.archive }}" = "tar.xz" ]; then
             tar -cJf rustpass-${{ matrix.suffix }}.tar.xz rustpass
+          else
+            tar -czf rustpass-${{ matrix.suffix }}.tar.gz rustpass
+          fi
+
