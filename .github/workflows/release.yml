@@ -56,13 +56,14 @@ jobs:
         run: |
           cd dist
           if [ "${{ matrix.archive }}" = "zip" ]; then
-            zip rustpass-${{ matrix.suffix }}.zip rustpass.exe
+            powershell -Command "Compress-Archive -Path rustpass.exe -DestinationPath rustpass-${{ matrix.suffix }}.zip"
           elif [ "${{ matrix.archive }}" = "tar.xz" ]; then
             tar -cJf rustpass-${{ matrix.suffix }}.tar.xz rustpass
           else
             tar -czf rustpass-${{ matrix.suffix }}.tar.gz rustpass
           fi
         shell: bash
+
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
