@@ -5,44 +5,65 @@ on:
     types: [created]
 
 jobs:
-  release:
-    name: publish ${{ matrix.name }}
+  build:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
-          - target: x86_64-pc-windows-gnu
-            suffix: windows-x86_64
-            archive: zip
-            name: windows
-
           - target: x86_64-unknown-linux-gnu
-            suffix: linux-x86_64
+            os: ubuntu-latest
             archive: tar.xz
-            name: linux
-
+            suffix: linux-x86_64
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            archive: zip
+            suffix: windows-x86_64
           - target: x86_64-apple-darwin
-            suffix: darwin-x86_64
+            os: macos-latest
             archive: tar.gz
-            name: mac-intel
-
+            suffix: macos-x86_64
           - target: aarch64-apple-darwin
-            suffix: darwin-aarch64
+            os: macos-latest
             archive: tar.gz
-            name: mac-arm64
+            suffix: macos-arm64
 
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - uses: xhaiker/rust-release.action@v1.0.0
-        name: build ${{ matrix.name }}
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
         with:
-          rust_target: ${{ matrix.target }}
-          archive_suffix: ${{ matrix.suffix }}
-          archive_types: ${{ matrix.archive }}
-          extra_files: "README.md LICENSE"
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Build binary
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Archive release binary
+        run: |
+          cd target/${{ matrix.target }}/release
+          mkdir rustpass-${{ matrix.suffix }}
+          cp rustpass ../../../../README.md ../../../../LICENSE rustpass-${{ matrix.suffix }} || true
+          cd rustpass-${{ matrix.suffix }}
+
+          if [[ "${{ matrix.archive }}" == "zip" ]]; then
+            zip -r ../../rustpass-${{ matrix.suffix }}.zip ./*
+          elif [[ "${{ matrix.archive }}" == "tar.gz" ]]; then
+            tar -czf ../../rustpass-${{ matrix.suffix }}.tar.gz ./*
+          elif [[ "${{ matrix.archive }}" == "tar.xz" ]]; then
+            tar -cJf ../../rustpass-${{ matrix.suffix }}.tar.xz ./*
+          fi
+        shell: bash
+
+      - name: Upload release archive
+        uses: softprops/action-gh-release@v1
+        with:
+          files: rustpass-${{ matrix.suffix }}.${{ matrix.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
