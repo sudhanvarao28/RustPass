@@ -43,8 +43,15 @@ jobs:
       - name: Build binary
         run: |
           cargo build --release --target ${{ matrix.target }}
-          mkdir -p dist
-          cp target/${{ matrix.target }}/release/rustpass dist/
+          mkdir dist
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp target/${{ matrix.target }}/release/rustpass.exe dist/rustpass.exe
+          else
+            cp target/${{ matrix.target }}/release/rustpass dist/rustpass
+          fi
+          ls dist
+        shell: bash
+
 
       - name: Package archive
         run: |
