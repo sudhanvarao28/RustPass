@@ -2,7 +2,10 @@ name: release
 
 on:
   release:
-    types: [created]
+    types: [created]  # You can also change this to `published` for better automation
+
+permissions:
+  contents: write  # ✅ REQUIRED for uploading assets with GITHUB_TOKEN
 
 jobs:
   build:
@@ -42,8 +45,7 @@ jobs:
           override: true
 
       - name: Build binary
-        run: |
-          cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Archive release binary
         run: |
