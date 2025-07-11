@@ -1,4 +1,3 @@
-use std::{collections::HashMap};
 use once_cell::sync::Lazy;
 use sled::{Db, IVec};
 use crate::encrypt_decrypt;
@@ -33,20 +32,22 @@ pub fn get(key:&str)-> Option<IVec>{
     }
 }
 
-pub fn iter_get_passwords(masterpassword: &[u8]) -> Result<HashMap<String, Vec<u8>>, anyhow::Error>{
-    let mut result_map:HashMap<String, Vec<u8>> = HashMap::new();
-    for result in DB.iter(){
-        let (key,value) = result?;
+pub fn iter_get_passwords(masterpassword: &[u8]) -> Result<Vec<(String, Vec<u8>)>, anyhow::Error> {
+    let mut result_vec: Vec<(String, Vec<u8>)> = Vec::new();
+
+    for result in DB.iter() {
+        let (key, value) = result?;
         let key_str = String::from_utf8(key.to_vec())?;
-        if key_str == "salt".to_string() || key_str == "hash".to_string(){
+        if key_str == "salt" || key_str == "hash" {
             continue;
         }
-        let value_vec = value.to_vec();
-        let decrypted_value = encrypt_decrypt::decrypt(&value_vec.as_slice(), masterpassword)?;
-        result_map.insert(key_str, decrypted_value.to_vec());
+        let decrypted_value = encrypt_decrypt::decrypt(&value, masterpassword)?;
+        result_vec.push((key_str, decrypted_value));
     }
-    Ok(result_map)
+
+    Ok(result_vec)
 }
+
 
 #[cfg(test)]
 mod tests {

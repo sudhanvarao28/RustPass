@@ -14,7 +14,6 @@ pub mod encrypt_decrypt;
 pub mod sleddb;
 
 use std::{
-    collections::HashMap,
     io::stdout
 };
 
@@ -31,7 +30,7 @@ enum Screen {
     DeleteKey,
     ViewPassword,
     SuccessMessage(String),
-    ErrorMessage(String), // 🔴 NEW
+    ErrorMessage(String), 
 }
 
 #[derive(Default)]
@@ -42,7 +41,7 @@ struct Inputs {
     edit_key: String,
     edit_password: String,
     delete_key: String,
-    stored_passwords: HashMap<String, Vec<u8>>,
+    stored_passwords: Vec<(String, Vec<u8>)>,
 }
 
 fn add_entry(master_password: &str, key: &str, value: &str) -> Result<(), anyhow::Error> {
@@ -66,6 +65,7 @@ fn main() -> Result<(), anyhow::Error> {
     let mut input = Inputs::default();
     let menu_items = vec!["Add Password", "View Password", "Edit Password", "Delete Password", "Exit"];
     let mut selected = 0;
+    let mut view_selected: usize = 0;
 
     loop {
         terminal.draw(|f| {
@@ -111,14 +111,18 @@ fn main() -> Result<(), anyhow::Error> {
                 Screen::ViewPassword => {
                     let items: Vec<ListItem> = input
                         .stored_passwords
-                        .iter()
-                        .map(|(key, value)| {
+                        .iter().enumerate()
+                        .map(|(i,(key, value))| {
                             let value_str = String::from_utf8_lossy(value);
-                            ListItem::new(format!("{} : {}", key, value_str))
+                            ListItem::new(format!("{} : {}", key, value_str)).style(if i==view_selected{
+                                Style::default().fg(Color::Yellow)
+                            } else {
+                                Style::default()
+                            } )
                         })
                         .collect();
                     let list = List::new(items)
-                        .block(Block::default().title("Stored Passwords (Enter to reveal, Esc to go back)").borders(Borders::ALL));
+                        .block(Block::default().title("Stored Passwords (Esc to go back, UP and DOWN to navigate, Enter to copy to clipboard)").borders(Borders::ALL));
                     f.render_widget(list, size);
                 }
                 Screen::EditKey => {
@@ -159,7 +163,10 @@ fn main() -> Result<(), anyhow::Error> {
                     KeyCode::Down => if selected < menu_items.len() - 1 { selected += 1 },
                     KeyCode::Enter => match selected {
                         0 => { input.password_input.clear(); screen = Screen::AddKeyEntry; },
-                        1 => screen = Screen::ViewPassword,
+                        1 => screen = {
+                            input.stored_passwords = sleddb::iter_get_passwords(input.masterpass_input.as_bytes())?;
+                            Screen::ViewPassword
+                        },
                         2 => screen = Screen::EditKey,
                         3 => screen = Screen::DeleteKey,
                         4 => break,
@@ -209,12 +216,42 @@ fn main() -> Result<(), anyhow::Error> {
                     _ => {}
                 },
                 Screen::ViewPassword => {
-                    input.stored_passwords = sleddb::iter_get_passwords(input.masterpass_input.as_bytes())?;
-                    if key.code == KeyCode::Esc {
-                        input.stored_passwords.clear();
-                        screen = Screen::Menu;
+                    match key.code{
+                       KeyCode::Esc => {
+                            input.stored_passwords.clear();
+                            screen = Screen::Menu;
+                        },
+                        KeyCode::Up => {
+                            if view_selected > 0 {
+                                view_selected -= 1;
+                            }
+                        }
+                        KeyCode::Enter => {
+                            if let Some((_, value)) = input.stored_passwords.iter().nth(view_selected) {
+                                // Copy to clipboard
+                                if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                                    if let Ok(plaintext) = String::from_utf8(value.clone()) {
+                                        if let Err(e) = clipboard.set_text(plaintext) {
+                                            screen = Screen::ErrorMessage(format!("Failed to copy: {}", e));
+                                        } else {
+                                            screen = Screen::SuccessMessage("Password copied to clipboard!  (Press Enter or Esc to return)".to_string());
+                                        }
+                                    } else {
+                                        screen = Screen::ErrorMessage("Password not valid UTF-8  (Press Enter or Esc to return)".to_string());
+                                    }
+                                } else {
+                                    screen = Screen::ErrorMessage("Clipboard unavailable  (Press Enter or Esc to return)".to_string());
+                                }
+                            }
+                        }
+                        KeyCode::Down => {
+                            if view_selected < input.stored_passwords.len().saturating_sub(1) {
+                                view_selected += 1;
+                            }
+                        },
+                        _ => {}
                     }
-                }
+                },
                 Screen::EditKey => match key.code {
                     KeyCode::Esc => {
                         input.edit_key.clear();
