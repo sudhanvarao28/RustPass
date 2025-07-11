@@ -6,7 +6,7 @@ A secure, cross-platform terminal-based password manager written in Rust.
 
 RustPass uses AES-256-GCM encryption and Argon2id key derivation to securely encrypt and store your passwords.
 
-## How it works
+### How it works
 - Master Password: When setting up RustPass, you're asked to create a master password.
 - Salt + Argon2: Your master password is hashed with a random 16-byte salt using the Argon2id algorithm.
 - AES Encryption: A 32-byte encryption key is derived from the master password hash and used with AES-256-GCM to encrypt/decrypt password entries.
