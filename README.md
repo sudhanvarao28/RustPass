@@ -4,7 +4,7 @@ A secure, cross-platform terminal-based password manager written in Rust.
 
 ## Usage
 
-Download the latest release archive from the [Releases page](https://github.com/YOUR_USERNAME/rustpass/releases). Archives are available for Linux (`tar.xz`), macOS (`tar.gz`), and Windows (`zip`).
+Download the latest release archive from the [Releases page](https://github.com/sudhanvarao28/RustPass/releases). Archives are available for Linux (`tar.xz`), macOS (`tar.gz`), and Windows (`zip`).
 
 Its recommended to create a new dedicated directory and uncompress the binary to the newly created folder.
 
